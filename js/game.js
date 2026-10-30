@@ -41,7 +41,11 @@ function bindInput(){
     if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
     keys[k]=true;
     AudioSys.unlock();
-    if(k==='escape') togglePause();
+    if(k==='escape'){
+      if(state==='paused') resumeGame();
+      else if(document.getElementById('shop').classList.contains('hidden')===false){ AudioSys.sfx('click'); showScreen('menu'); }
+      else togglePause();
+    }
     if(k==='m'){ AudioSys.setMuted(!AudioSys.muted); showToast(AudioSys.muted?'已静音':'声音开启'); }
   });
   window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
@@ -907,6 +911,8 @@ function step(dt){
     updateEnemies(ts);
     updatePickups(ts);
     updateFx(ts);
+    /* Boss 战 BGM 加速 */
+    if(AudioSys.ctx) AudioSys.bpm=(G.boss&&!G.boss.dead)?114:96;
     /* 摄像机 */
     const pl=G.player;
     G.cam.x=lerp(G.cam.x,pl.x,1-Math.pow(0.001,dt));
@@ -1198,6 +1204,8 @@ function drawEnemy(e){
   const spr=SPR[def.spr];
   const f=Math.floor(e.animT*def.anim)%spr.frames.length;
   let sc=(def.size||1)*(e.elite?1.45:1);
+  /* 单帧精灵用浮动代替切帧，增加生命感 */
+  const bob=(spr.frames.length<2||(def.spr==='demonA'||def.spr==='skeletonA'||def.spr==='reaperA'||def.spr==='golemA'||def.spr==='lordA'))? Math.sin(e.animT*def.anim)*2.5 : 0;
   if(e.enraged){
     ctx.save(); ctx.globalAlpha=0.28+0.09*Math.sin(G.time*9);
     ctx.fillStyle='#e04a4a';
@@ -1205,8 +1213,8 @@ function drawEnemy(e){
     ctx.restore();
   }
   const alpha=e.spawnT>0?clamp(1-e.spawnT/0.6,0.2,1):(def.ghost?0.78+0.14*Math.sin(G.time*3+e.seed):1);
-  if(e.flashT>0) drawSpr(spr,e.x,e.y,{f,white:true,scale:sc,alpha});
-  else drawSpr(spr,e.x,e.y,{f,scale:sc,alpha,flip:(G.player.x<e.x)});
+  if(e.flashT>0) drawSpr(spr,e.x,e.y+bob,{f,white:true,scale:sc,alpha});
+  else drawSpr(spr,e.x,e.y+bob,{f,scale:sc,alpha,flip:(G.player.x<e.x)});
   if(e.elite||e.boss){
     const w=e.r*2, hp=Math.max(0,e.hp/e.maxhp);
     ctx.fillStyle='#191622'; ctx.fillRect(e.x-w/2,e.y-e.r*sc-12,w,5);

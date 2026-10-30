@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>血月幸存者 · BloodMoon Survivors</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#d9a934; --gold-l:#f0cf6e; --blood:#b8383e; --blood-l:#e04a4a;
+  --ink:#0b0910; --panel:#171322; --panel2:#211b30; --line:#3a3050;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--ink);}
+body{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;color:#e8e2f0;user-select:none;}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;}
+#ui{position:absolute;inset:0;pointer-events:none;}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;pointer-events:auto;background:rgba(8,6,14,.55);}
+.hidden{display:none !important;}
+.title{font-family:"Press Start 2P","Noto Sans SC",monospace;font-size:clamp(28px,6vw,54px);color:var(--blood-l);
+  text-shadow:0 0 18px rgba(224,74,74,.55),0 4px 0 #5a1420,0 0 2px #fff;letter-spacing:4px;margin-bottom:2px;}
+.subtitle{font-family:"Press Start 2P",monospace;font-size:clamp(9px,1.6vw,13px);color:var(--gold);letter-spacing:6px;opacity:.9;}
+.moonline{color:#c9c2dd;font-size:13px;letter-spacing:2px;opacity:.75;margin-top:4px;}
+.btn{pointer-events:auto;font-family:inherit;font-size:18px;letter-spacing:3px;color:#f4e9c8;cursor:pointer;
+  background:linear-gradient(180deg,#2c2440,#1c1728);border:2px solid var(--line);border-bottom-color:#241d38;
+  padding:12px 46px;min-width:280px;text-align:center;transition:all .12s;}
+.btn:hover{border-color:var(--gold);color:var(--gold-l);transform:translateY(-1px);box-shadow:0 4px 18px rgba(217,169,52,.18);}
+.btn.small{min-width:180px;padding:9px 26px;font-size:15px;}
+.btn:active{transform:translateY(1px);}
+.help{background:rgba(14,11,22,.85);border:1px solid var(--line);padding:10px 18px;font-size:13px;color:#bdb4d4;max-width:640px;text-align:center;line-height:1.8;}
+.credit{position:absolute;bottom:14px;font-size:11px;color:#6d6584;letter-spacing:1px;}
+.best{font-size:14px;color:var(--gold-l);letter-spacing:1px;}
+h2.gametitle{font-family:"Press Start 2P","Noto Sans SC",monospace;font-size:clamp(16px,3vw,26px);color:var(--gold-l);letter-spacing:3px;margin:0 0 8px;}
+/* character select */
+#charcards{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;}
+.charcard{width:220px;background:var(--panel);border:2px solid var(--line);padding:18px 16px 14px;cursor:pointer;text-align:center;transition:all .15s;}
+.charcard:hover{border-color:var(--gold-l);transform:translateY(-4px);box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 20px rgba(217,169,52,.12);}
+.charcard canvas{image-rendering:pixelated;width:96px;height:96px;background:rgba(0,0,0,.35);border:1px solid #2c2440;margin-bottom:10px;}
+.charcard .cname{font-size:19px;color:var(--gold-l);letter-spacing:2px;margin-bottom:6px;}
+.charcard .cdesc{font-size:12.5px;color:#b3aac9;line-height:1.75;min-height:76px;}
+.charcard .cstart{margin-top:8px;font-size:12px;color:#8f86aa;border-top:1px dashed var(--line);padding-top:8px;}
+/* level up cards */
+#lucards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;max-width:1100px;}
+.lucard{width:240px;background:linear-gradient(180deg,#241d36,#181226);border:2px solid var(--line);padding:16px;cursor:pointer;
+  text-align:center;transition:all .12s;animation:cardin .28s backwards;}
+.lucard:nth-child(2){animation-delay:.07s}.lucard:nth-child(3){animation-delay:.14s}.lucard:nth-child(4){animation-delay:.21s}
+@keyframes cardin{from{opacity:0;transform:translateY(18px) scale(.96);}to{opacity:1;}}
+.lucard:hover{border-color:var(--gold-l);transform:translateY(-5px);box-shadow:0 12px 30px rgba(0,0,0,.55);}
+.lucard canvas{image-rendering:pixelated;width:72px;height:72px;background:rgba(0,0,0,.4);border:1px solid #322848;margin-bottom:10px;}
+.lucard .lname{font-size:17px;color:#fff;margin-bottom:2px;}
+.lucard .ltag{font-size:12px;color:var(--gold);margin-bottom:8px;}
+.lucard .ldesc{font-size:13px;color:#b8aed2;line-height:1.65;min-height:56px;}
+.lucard .lvlrow{margin-top:8px;display:flex;gap:3px;justify-content:center;}
+.lucard .pip{width:14px;height:6px;background:#332a4a;border:1px solid #453a63;}
+.lucard .pip.on{background:var(--gold);border-color:var(--gold-l);}
+/* stats & gameover */
+.statgrid{display:grid;grid-template-columns:auto auto;gap:8px 26px;font-size:16px;background:rgba(12,9,20,.8);
+  border:1px solid var(--line);padding:18px 30px;}
+.statgrid .k{color:#9c92b8;letter-spacing:1px;}.statgrid .v{color:#fff;text-align:right;}
+.statgrid .v.gold{color:var(--gold-l);}
+#toast{position:absolute;top:15%;left:50%;transform:translateX(-50%);pointer-events:none;text-align:center;
+  font-size:20px;color:var(--gold-l);text-shadow:0 2px 8px #000,0 0 14px rgba(217,169,52,.5);opacity:0;transition:opacity .3s;letter-spacing:2px;}
+#toast.show{opacity:1;}
+.warn{color:var(--blood-l) !important;font-size:24px !important;}
+#errbox{position:absolute;left:8px;bottom:8px;max-width:70%;font:12px/1.5 Consolas,monospace;color:#ff9c9c;
+  background:rgba(40,10,14,.85);border:1px solid #7a2430;padding:6px 10px;display:none;pointer-events:auto;white-space:pre-wrap;max-height:40%;overflow:auto;}
+.newrec{color:var(--blood-l);font-size:15px;letter-spacing:2px;animation:pulse 1s infinite alternate;}
+@keyframes pulse{from{opacity:.6}to{opacity:1}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="ui">
+  <div id="menu" class="screen">
+    <div class="title">血月幸存者</div>
+    <div class="subtitle">BLOODMOON SURVIVORS</div>
+    <div class="moonline">血月当空 · 活到黎明</div>
+    <div class="best" id="bestline"></div>
+    <button class="btn" id="btnStart">开始游戏</button>
+    <button class="btn small" id="btnHelp">操作说明</button>
+    <div class="help hidden" id="helpbox">WASD / 方向键 移动 · 武器全自动攻击<br>击杀敌人收集经验宝石 · 升级时三选一强化<br>
+      精英怪掉宝箱 · 每5分钟出现头目 · 撑过 20 分钟迎来黎明胜利<br>Esc 暂停 · M 静音</div>
+    <div class="credit">像素素材与音效均由程序实时生成 · v1.0</div>
+  </div>
+  <div id="charsel" class="screen hidden">
+    <h2 class="gametitle">选择幸存者</h2>
+    <div id="charcards"></div>
+    <button class="btn small" id="btnBack">返回</button>
+  </div>
+  <div id="levelup" class="screen hidden">
+    <h2 class="gametitle">✦ 升级！选择一项 ✦</h2>
+    <div id="lucards"></div>
+  </div>
+  <div id="pause" class="screen hidden">
+    <h2 class="gametitle">已暂停</h2>
+    <div id="pausestats" class="statgrid"></div>
+    <button class="btn" id="btnResume">继续游戏</button>
+    <button class="btn small" id="btnQuit1">放弃并返回主菜单</button>
+  </div>
+  <div id="dead" class="screen hidden">
+    <h2 class="gametitle" style="color:var(--blood-l)">你倒下了……</h2>
+    <div id="deadnew" class="newrec hidden">★ 新纪录！★</div>
+    <div id="deadstats" class="statgrid"></div>
+    <button class="btn" id="btnRetry">再来一局</button>
+    <button class="btn small" id="btnQuit2">返回主菜单</button>
+  </div>
+  <div id="win" class="screen hidden">
+    <h2 class="gametitle">黎明降临！</h2>
+    <div class="moonline" style="color:#f0d9a0">血月褪去，你活到了黎明。</div>
+    <div id="winnew" class="newrec hidden">★ 新纪录！★</div>
+    <div id="winstats" class="statgrid"></div>
+    <button class="btn" id="btnRetry2">再战一局</button>
+    <button class="btn small" id="btnQuit3">返回主菜单</button>
+  </div>
+  <div id="toast"></div>
+  <div id="errbox"></div>
+</div>
+<script src="js/sprites.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/content.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

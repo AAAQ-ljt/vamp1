@@ -486,7 +486,7 @@ function buildChoices(){
     if(w.lv<def.maxLv) pool.push({kind:'wu',id:w.id,lv:w.lv+1,wt:28});
   }
   if(!wSlots) for(const id in WEAPONS){
-    if(!G.weapons.some(w=>w.id===id)) pool.push({kind:'wn',id,lv:1,wt:20});
+    if(!G.weapons.some(w=>w.id===id)) pool.push({kind:'wn',id,lv:1,wt:G.level<=3?42:20});
   }
   for(const id in G.passives){
     const def=PASSIVES[id];
@@ -783,13 +783,20 @@ function buildVignette(){
 let groundPat=null;
 function buildGround(){
   const t=_mkcv(140,140), g=t.getContext('2d');
-  g.fillStyle='#1b221a'; g.fillRect(0,0,140,140);
-  for(let i=0;i<130;i++){
-    g.fillStyle=Math.random()<0.5?'#20291f':'#161c15';
+  g.fillStyle='#222b1f'; g.fillRect(0,0,140,140);
+  /* 大块明暗斑 */
+  for(let i=0;i<7;i++){
+    g.fillStyle=Math.random()<0.5?'rgba(44,56,40,0.5)':'rgba(24,30,21,0.5)';
+    g.beginPath();
+    g.ellipse(Math.random()*140,Math.random()*140,rnd(14,30),rnd(9,20),rnd(TAU),0,TAU);
+    g.fill();
+  }
+  for(let i=0;i<150;i++){
+    g.fillStyle=Math.random()<0.5?'#2b3626':'#1b2318';
     g.fillRect((Math.random()*140)|0,(Math.random()*140)|0,3,3);
   }
-  for(let i=0;i<26;i++){
-    g.fillStyle='#232d21';
+  for(let i=0;i<40;i++){
+    g.fillStyle='#2e3a24';
     g.fillRect((Math.random()*136)|0,(Math.random()*136)|0,2,2);
   }
   groundPat=ctx.createPattern(t,'repeat');
@@ -900,16 +907,23 @@ function render(){
       }
     }
   }
-  /* 鞭痕 */
+  /* 鞭痕：扇形月牙光效 */
   for(const s of G.slashes){
     const a=1-s.t/s.dur;
     ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(s.ang);
-    ctx.strokeStyle=`rgba(240,230,228,${0.85*a})`;
-    ctx.lineWidth=7*a+2;
+    const r1=s.range*0.45;
+    const grad=ctx.createRadialGradient(0,0,r1,0,0,s.range);
+    grad.addColorStop(0,'rgba(240,230,228,0)');
+    grad.addColorStop(0.72,`rgba(242,237,228,${0.5*a})`);
+    grad.addColorStop(1,`rgba(224,74,74,${0.75*a})`);
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.arc(0,0,s.range,-0.85,0.85);
+    ctx.arc(0,0,r1,0.85,-0.85,true);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=`rgba(255,246,232,${0.85*a})`;
+    ctx.lineWidth=2.5*a+1;
     ctx.beginPath(); ctx.arc(0,0,s.range,-0.8,0.8); ctx.stroke();
-    ctx.strokeStyle=`rgba(184,56,62,${0.6*a})`;
-    ctx.lineWidth=3;
-    ctx.beginPath(); ctx.arc(0,0,s.range*0.8,-0.7,0.7); ctx.stroke();
     ctx.restore();
   }
   /* 闪电 */

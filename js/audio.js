@@ -113,6 +113,7 @@ const AudioSys = {
   _stepNote(s,t,spb){
     const bar=Math.floor(s/16)%4, st=s%16;
     const game=this.mode==='game';
+    const inten=this.intensity||0;
     // 和弦进行: Am F Dm E
     const roots=[110.00, 87.31, 73.42, 82.41];
     const arps=[
@@ -129,8 +130,13 @@ const AudioSys = {
     // 底鼓/军鼓
     if(game){
       if(st===0||st===8) this.tone({type:'sine',f:130,f2:38,dur:0.13,v:0.32,bus:M});
-      if(st===4||st===12) this.noise({hp:1200,dur:0.09,v:0.09,bus:M});
-      if(st%2===0) this.noise({hp:6000,dur:0.02,v:0.035,bus:M});
+      if(st===4||st===12) this.noise({hp:1200,dur:0.09,v:inten>=1?0.15:0.09,bus:M});
+      if(st%2===0) this.noise({hp:6000,dur:0.02,v:inten>=1?0.05:0.035,bus:M});
+      if(inten>=1&&st%4===2) this.noise({hp:7000,dur:0.02,v:0.032,bus:M});
+      if(inten>=2&&[0,3,6,8,11,14].includes(st)){
+        const mel=[0,2,1,3,2,4][Math.floor(s/16)%6];
+        this.tone({type:'triangle',f:arp[mel%4]*2,dur:spb*1.8,v:0.05,echo:true,bus:M});
+      }
     }
     // 琶音
     const pat = game? [0,3,6,10,12,14] : [0,6,12];

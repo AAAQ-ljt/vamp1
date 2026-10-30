@@ -436,6 +436,16 @@ RAW.bones=[
 ".kxxxkkkxxk.",
 "..kxk...kk..",
 ];
+RAW.coin=[
+"..kkkk..",
+".kyYYyk.",
+"kyYyyyyk",
+"kyyyyyyk",
+"kyyyyyyk",
+"kyyyyyyk",
+".kyyyyk.",
+"..kkkk..",
+];
 
 /* ---- 武器图标 (12x12) ---- */
 RAW.ic_whip=[
@@ -719,6 +729,7 @@ function buildSprites(){
   SPR.graveA = defSprite([RAW.grave],2);
   SPR.treeA  = defSprite([RAW.tree],2);
   SPR.bonesA = defSprite([RAW.bones],2);
+  SPR.coinA  = defSprite([RAW.coin],2);
 }
 /* 通用绘制：底边中心锚点，支持翻转/缩放/闪白/透明 */
 function drawSpr(spr, x, y, o){

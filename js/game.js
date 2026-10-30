@@ -97,7 +97,7 @@ const _q=[];
 function startGame(charId){
   const ch=CHARACTERS[charId]||CHARACTERS.hunter;
   G={
-    char:charId, time:0, kills:0, gold:0,
+    char:charId, time:0, kills:0, gold:0, meta:loadMeta(),
     xp:0, level:1, luQueue:0,
     player:{ x:WORLD/2, y:WORLD/2, r:12, hp:100, face:1, faceA:0, iframes:0, hurtF:0, walkT:0 },
     weapons:[], passives:{},
@@ -118,21 +118,34 @@ function startGame(charId){
   hudGems=0;
 }
 
+/* ---------- 永久强化（元进度） ---------- */
+function loadMeta(){ try{ return JSON.parse(localStorage.getItem('bms_upgrades')||'{}'); }catch(e){ return {}; } }
+function saveMeta(m){ try{ localStorage.setItem('bms_upgrades',JSON.stringify(m)); }catch(e){} }
+function loadBank(){ try{ return parseInt(localStorage.getItem('bms_bank')||'0',10)||0; }catch(e){ return 0; } }
+function addBank(n){ try{ localStorage.setItem('bms_bank',''+(loadBank()+n)); }catch(e){} }
+const SHOP_ITEMS=[
+  {id:'hp',  name:'生命上限', desc:'每级 +10 最大生命', max:5, cost:l=>20*Math.pow(2,l)},
+  {id:'dmg', name:'力量祝福', desc:'每级 +4% 伤害', max:5, cost:l=>30*Math.pow(2,l)},
+  {id:'spd', name:'轻靴', desc:'每级 +3% 移动速度', max:3, cost:l=>40*Math.pow(2,l)},
+  {id:'mag', name:'贪婪磁石', desc:'每级 +15% 拾取范围', max:3, cost:l=>40*Math.pow(2,l)},
+];
+
 /* ---------- 角色属性与被动 ---------- */
 let Pmods={};
 function recalcStats(){
   const p=G.passives;
   const lv=id=>p[id]||0;
+  const M=G.meta||{};
   const P={};
-  P.maxhp = (Pmods.maxhp||100);
-  P.might = (Pmods.might||1) * Math.pow(1.12, lv('might'));
+  P.maxhp = (Pmods.maxhp||100) + 10*(M.hp||0);
+  P.might = (Pmods.might||1) * Math.pow(1.12, lv('might')) * (1+0.04*(M.dmg||0));
   P.cd    = (Pmods.cd||1) * Math.pow(0.93, lv('tome'));
   P.area  = (Pmods.area||1) * (1+0.10*lv('area'));
   P.pspd  = 1;
   P.amount= lv('dupe');
   P.armor = (Pmods.armor||0) + lv('armor');
-  P.speed = 175 * (Pmods.speed||1) * (1+0.08*lv('wings'));
-  P.magnet= 55 * (1+0.30*lv('magnetP'));
+  P.speed = 175 * (Pmods.speed||1) * (1+0.08*lv('wings')) * (1+0.03*(M.spd||0));
+  P.magnet= 55 * (1+0.30*lv('magnetP')) * (1+0.15*(M.mag||0));
   P.regen = 0.4*lv('heart');
   P.growth= 1+0.10*lv('growth');
   P.luck  = 1+0.15*lv('luck');
@@ -357,13 +370,16 @@ function killEnemy(e, drops){
     if(e.boss){
       G.pickups.push({type:'chest',x:e.x,y:e.y,t:0});
       G.pickups.push({type:'potion',x:e.x+30,y:e.y+10,t:0});
+      for(let i=0;i<10;i++) G.pickups.push({type:'coin',v:2,x:e.x+rnd(-40,40),y:e.y+rnd(-40,40),t:0});
       AudioSys.sfx('chest'); G.cam.shake=10;
       showToast('头目被击败！','gold');
     } else if(e.elite){
       G.pickups.push({type:'chest',x:e.x,y:e.y,t:0});
+      for(let i=0;i<4;i++) G.pickups.push({type:'coin',v:1,x:e.x+rnd(-24,24),y:e.y+rnd(-24,24),t:0});
     } else {
       G.gems.push(makeGem(e.x,e.y,Math.round(e.xp)));
       const L=G.P.luck;
+      if(Math.random()<0.10*L) G.pickups.push({type:'coin',v:1,x:e.x+rnd(-8,8),y:e.y+rnd(-8,8),t:0});
       if(Math.random()<0.012*L) G.pickups.push({type:'potion',x:e.x,y:e.y,t:0});
       else if(Math.random()<0.002*L) G.pickups.push({type:'magnet',x:e.x,y:e.y,t:0});
     }
@@ -675,6 +691,16 @@ function updatePickups(dt){
   }
   for(const p of G.pickups){
     p.t=(p.t||0)+dt;
+    if(p.type==='coin'){
+      const dd=d2(p.x,p.y,pl.x,pl.y);
+      if(!p.attract&&dd<G.P.magnet*G.P.magnet*1.3) p.attract=true;
+      if(p.attract){
+        const a=Math.atan2(pl.y-p.y,pl.x-p.x);
+        p.x+=Math.cos(a)*520*dt; p.y+=Math.sin(a)*520*dt;
+        if(dd<20*20){ p.dead=true; G.gold+=p.v||1; AudioSys.sfx('gem'); }
+      }
+      continue;
+    }
     if(d2(p.x,p.y,pl.x,pl.y)<26*26){
       p.dead=true;
       if(p.type==='chest') grantChest();
@@ -741,6 +767,7 @@ function step(dt){
   if(G.hitstop>0&&state==='playing'){ G.hitstop-=dt; ts*=0.12; }
   if(state==='playing'||state==='dying'||state==='winning'){
     if(state!=='winning') G.time+=ts;
+    AudioSys.intensity=G.time>600?2:(G.time>300?1:0);
     updatePlayer(ts);
     if(state==='playing') updateDirector(ts);
     if(state==='winning') updateWinning(dt);
@@ -789,7 +816,9 @@ function finishWin(){
   document.getElementById('winnew').classList.toggle('hidden',!G.newBest);
   showScreen('win');
 }
+function bankRun(){ if(G&&!G.banked&&G.gold>0){ addBank(G.gold); G.banked=true; } }
 function saveBest(win){
+  bankRun();
   try{
     const prev=JSON.parse(localStorage.getItem('bms_best')||'null');
     const cur={time:Math.floor(G.time),kills:G.kills,level:G.level,win};
@@ -807,6 +836,7 @@ function showStats(elId,title){
     `<div class="k">击杀</div><div class="v">${G.kills}</div>`+
     `<div class="k">等级</div><div class="v">${G.level}</div>`+
     `<div class="k">宝石</div><div class="v">${hudGems}</div>`+
+    `<div class="k">金币</div><div class="v gold">🪙 ${G.gold}（已存入银行）</div>`+
     `<div class="k">最佳纪录</div><div class="v">${bestStatLine()}</div>`;
 }
 
@@ -904,6 +934,13 @@ function render(){
       ctx.scale(s,s); ctx.drawImage(SPR.chestA.frames[0],-SPR.chestA.w/2,-SPR.chestA.h);
       ctx.restore();
       if(Math.random()<0.15) addPart(p.x+rnd(-10,10),p.y-20,0,-50,0.5,'#f0cf6e',2,true);
+    }
+    else if(p.type==='coin'){
+      ctx.save(); ctx.translate(p.x,p.y+bob*0.6);
+      const sq=0.75+0.25*Math.abs(Math.sin(G.time*4+p.t));
+      ctx.scale(sq,1);
+      ctx.drawImage(SPR.coinA.frames[0],-SPR.coinA.w/2,-SPR.coinA.h/2);
+      ctx.restore();
     }
     else if(p.type==='potion') drawSpr(SPR.potionA,p.x,p.y+bob,{});
     else if(p.type==='magnet') drawSpr(SPR.magnetA,p.x,p.y+bob,{});
@@ -1102,6 +1139,7 @@ function drawHUD(){
   ctx.font='bold 13px Consolas,monospace'; ctx.textAlign='right';
   ctx.fillStyle='#e8e2f0'; ctx.fillText('击杀 '+G.kills,VW-10,14);
   ctx.fillStyle='#f0cf6e'; ctx.fillText('宝石 '+hudGems,VW-10,32);
+  ctx.fillStyle='#f0cf6e'; ctx.fillText('🪙 '+G.gold,VW-10,50);
   /* 血条 */
   const bw=190,bh=15,bx=12,by=VH-30;
   ctx.fillStyle='rgba(10,7,16,0.8)'; ctx.fillRect(bx-2,by-2,bw+4,bh+4);
@@ -1152,6 +1190,20 @@ function drawHUD(){
     ctx.fillStyle=`rgba(240,207,110,${0.6+0.4*Math.sin(G.time*6)})`;
     ctx.fillText('黎明即将到来——撑住！',VW/2,VH*0.3);
   }
+  /* 离屏目标箭头（头目/宝箱） */
+  const tgts=[];
+  if(G.boss&&!G.boss.dead) tgts.push({o:G.boss,col:'#e04a4a'});
+  for(const p of G.pickups) if(p.type==='chest') tgts.push({o:p,col:'#f0cf6e'});
+  for(const tg of tgts){
+    const sx=tg.o.x-G.cam.x+VW/2, sy=tg.o.y-G.cam.y+VH/2;
+    if(sx>34&&sx<VW-34&&sy>34&&sy<VH-34) continue;
+    const a=Math.atan2(sy-VH/2,sx-VW/2);
+    const bx=VW/2+Math.cos(a)*(Math.min(VW,VH)/2-48), by=VH/2+Math.sin(a)*(Math.min(VW,VH)/2-48);
+    ctx.save(); ctx.translate(bx,by); ctx.rotate(a);
+    ctx.fillStyle=tg.col; ctx.globalAlpha=0.65+0.35*Math.sin(G.time*6);
+    ctx.beginPath(); ctx.moveTo(13,0); ctx.lineTo(-8,-8); ctx.lineTo(-8,8); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
   if(G.god){ ctx.font='bold 12px Consolas,monospace'; ctx.textAlign='center'; ctx.fillStyle='#78a75f'; ctx.fillText('GOD MODE',VW/2,VH-10); }
   if(DEBUG){
     ctx.font='12px Consolas,monospace'; ctx.textAlign='left'; ctx.fillStyle='#7ad1e0';
@@ -1162,7 +1214,39 @@ function drawHUD(){
 /* ============================================================
  * UI 屏幕管理
  * ============================================================ */
-const SCREENS=['menu','charsel','levelup','pause','dead','win'];
+const SCREENS=['menu','charsel','levelup','pause','dead','win','shop'];
+function renderShop(){
+  const bank=loadBank();
+  document.getElementById('shopbank').textContent='持有金币：'+bank+'（对局中拾取的金币会在结算后存入）';
+  const box=document.getElementById('shopitems');
+  box.innerHTML='';
+  const meta=loadMeta();
+  for(const it of SHOP_ITEMS){
+    const lvl=meta[it.id]||0;
+    const el=document.createElement('div');
+    el.className='shopitem'+(lvl>=it.max?' maxed':'');
+    const pips='<span class="pips">'+Array.from({length:it.max},(_,i)=>`<i class="${i<lvl?'on':''}"></i>`).join('')+'</span>';
+    el.innerHTML=`<div><div class="sname">${it.name}${pips}</div><div class="sdesc">${it.desc}</div></div>`;
+    const btn=document.createElement('button');
+    btn.className='sbuy';
+    if(lvl>=it.max){ btn.textContent='已满级'; btn.disabled=true; }
+    else{
+      const cost=it.cost(lvl);
+      btn.textContent='🪙 '+cost;
+      btn.disabled=bank<cost;
+      btn.onclick=()=>{
+        const b=loadBank();
+        if(b<cost) return;
+        addBank(-cost);
+        const m=loadMeta(); m[it.id]=(m[it.id]||0)+1; saveMeta(m);
+        AudioSys.sfx('chest');
+        renderShop();
+      };
+    }
+    el.appendChild(btn);
+    box.appendChild(el);
+  }
+}
 function showScreen(name){
   for(const s of SCREENS){
     document.getElementById(s).classList.toggle('hidden',s!==name);
@@ -1201,6 +1285,7 @@ function pauseGame(){
 function resumeGame(){ if(state==='paused'){ state='playing'; showScreen(null); } }
 function togglePause(){ if(state==='playing') pauseGame(); else if(state==='paused') resumeGame(); }
 function toMenu(){
+  bankRun();
   state='menu'; G=null;
   document.getElementById('bestline').textContent=bestLine();
   showScreen('menu');
@@ -1226,6 +1311,8 @@ function buildCharCards(){
 }
 function bindUI(){
   document.getElementById('btnStart').onclick=()=>{ AudioSys.unlock(); AudioSys.sfx('click'); state='charsel'; showScreen('charsel'); };
+  document.getElementById('btnShop').onclick=()=>{ AudioSys.unlock(); AudioSys.sfx('click'); renderShop(); showScreen('shop'); };
+  document.getElementById('btnShopBack').onclick=()=>{ AudioSys.sfx('click'); showScreen('menu'); };
   document.getElementById('btnHelp').onclick=()=>document.getElementById('helpbox').classList.toggle('hidden');
   document.getElementById('btnBack').onclick=()=>{ state='menu'; showScreen('menu'); };
   document.getElementById('btnResume').onclick=resumeGame;
@@ -1259,6 +1346,7 @@ window.GAME={
   skip(s){ if(G) G.time+=s; },
   killAll(){ if(G) for(const e of G.enemies) killEnemy(e,false); },
   hurt(n){ if(G) hurtPlayer(n||10); },
+  gold(n){ if(G) G.gold+=n||50; },
   screenshotHint(){ return 'window.GAME.info()'; },
 };
 

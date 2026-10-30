@@ -62,6 +62,19 @@ h2.gametitle{font-family:"Press Start 2P","Noto Sans SC",monospace;font-size:cla
 #toast{position:absolute;top:15%;left:50%;transform:translateX(-50%);pointer-events:none;text-align:center;
   font-size:20px;color:var(--gold-l);text-shadow:0 2px 8px #000,0 0 14px rgba(217,169,52,.5);opacity:0;transition:opacity .3s;letter-spacing:2px;}
 #toast.show{opacity:1;}
+/* 商店条目 */
+.shopitem{display:flex;align-items:center;justify-content:space-between;background:var(--panel);
+  border:2px solid var(--line);padding:12px 16px;gap:12px;pointer-events:auto;}
+.shopitem .sname{font-size:16px;color:#fff;}
+.shopitem .sdesc{font-size:12px;color:#9c92b8;margin-top:3px;}
+.shopitem .sbuy{font-family:inherit;font-size:14px;padding:8px 14px;min-width:110px;cursor:pointer;
+  background:#2c2440;color:#f4e9c8;border:2px solid var(--line);}
+.shopitem .sbuy:not(:disabled):hover{border-color:var(--gold);color:var(--gold-l);}
+.shopitem .sbuy:disabled{opacity:.45;cursor:default;}
+.shopitem.maxed .sbuy{color:var(--gold);border-color:#6b5a20;}
+.pips{display:inline-flex;gap:3px;margin-left:8px;vertical-align:middle;}
+.pips i{width:12px;height:5px;background:#332a4a;border:1px solid #453a63;}
+.pips i.on{background:var(--gold);border-color:var(--gold-l);}
 .warn{color:var(--blood-l) !important;font-size:24px !important;}
 #errbox{position:absolute;left:8px;bottom:8px;max-width:70%;font:12px/1.5 Consolas,monospace;color:#ff9c9c;
   background:rgba(40,10,14,.85);border:1px solid #7a2430;padding:6px 10px;display:none;pointer-events:auto;white-space:pre-wrap;max-height:40%;overflow:auto;}
@@ -78,6 +91,7 @@ h2.gametitle{font-family:"Press Start 2P","Noto Sans SC",monospace;font-size:cla
     <div class="moonline">血月当空 · 活到黎明</div>
     <div class="best" id="bestline"></div>
     <button class="btn" id="btnStart">开始游戏</button>
+    <button class="btn small" id="btnShop">永久强化</button>
     <button class="btn small" id="btnHelp">操作说明</button>
     <div class="help hidden" id="helpbox">WASD / 方向键 移动 · 武器全自动攻击<br>击杀敌人收集经验宝石 · 升级时三选一强化<br>
       精英怪掉宝箱 · 每5分钟出现头目 · 撑过 20 分钟迎来黎明胜利<br>Esc 暂停 · M 静音</div>
@@ -87,6 +101,12 @@ h2.gametitle{font-family:"Press Start 2P","Noto Sans SC",monospace;font-size:cla
     <h2 class="gametitle">选择幸存者</h2>
     <div id="charcards"></div>
     <button class="btn small" id="btnBack">返回</button>
+  </div>
+  <div id="shop" class="screen hidden">
+    <h2 class="gametitle">永久强化</h2>
+    <div class="best" id="shopbank"></div>
+    <div id="shopitems" style="display:flex;flex-direction:column;gap:10px;max-width:520px;width:90%;"></div>
+    <button class="btn small" id="btnShopBack">返回</button>
   </div>
   <div id="levelup" class="screen hidden">
     <h2 class="gametitle">✦ 升级！选择一项 ✦</h2>

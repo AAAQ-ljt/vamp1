@@ -9,10 +9,11 @@ const WEAPONS = {
   whip:{
     name:'血鞭', icon:'ic_whip', maxLv:8,
     tip:'横扫身前，Lv4 后同时抽击身后',
+    evo:{passive:'might', name:'血月之鞭', tip:'血月加冕：前后同时抽击，范围与伤害大幅提升'},
     tips:['挥出血鞭抽打身前敌人','伤害提升','范围提升','同时抽击身后','伤害提升','可同时抽打两侧','伤害大幅提升','伤害与范围大幅提升'],
     st(lv,P){ return { dmg:14+9*lv, cd:1.35*P.cd, area:(1+0.1*lv)*P.area, amount:(lv>=6?2:1), range:95+9*lv }; },
     fire(api,w,s){
-      const dirs = (w.lv>=4)? [api.face, -api.face] : [api.face];
+      const dirs = (w.evolved||w.lv>=4)? [api.face, -api.face] : [api.face];
       for(let i=0;i<s.amount;i++){
         for(const d of dirs){
           api.slash(api.px, api.py, d>0?0:Math.PI, s.range*0.5*s.area, 46*s.area, s.dmg*P_(api).might, 'whip');
@@ -25,6 +26,7 @@ const WEAPONS = {
   knife:{
     name:'飞刀', icon:'ic_knife', maxLv:8,
     tip:'朝面向方向高速投掷飞刀',
+    evo:{passive:'dupe', name:'万刃风暴', tip:'刀刃如暴雨倾泻，穿透大增'},
     tips:['投出一把飞刀','伤害提升','+1 把飞刀','伤害与穿透提升','+1 把飞刀','伤害提升','+1 把飞刀','伤害与穿透大幅提升'],
     st(lv,P){ return { dmg:8+4*lv, cd:0.95*P.cd, amount:1+Math.floor(lv/3)+(lv>=8?1:0), speed:540*P.pspd, pierce:lv>=8?3:(lv>=4?2:1) }; },
     fire(api,w,s){
@@ -39,6 +41,7 @@ const WEAPONS = {
   wand:{
     name:'魔杖', icon:'ic_wand', maxLv:8,
     tip:'自动射向最近的敌人',
+    evo:{passive:'tome', name:'奥术洪流', tip:'魔弹成潮水般齐射'},
     tips:['射出一发魔弹','伤害提升','+1 发魔弹','伤害提升','+1 发魔弹','伤害与弹速提升','+1 发魔弹','伤害大幅提升'],
     st(lv,P){ return { dmg:10+5*lv, cd:1.05*P.cd, amount:1+Math.floor((lv+1)/3), speed:430*P.pspd }; },
     fire(api,w,s){
@@ -56,6 +59,7 @@ const WEAPONS = {
   axe:{
     name:'巨斧', icon:'ic_axe', maxLv:8,
     tip:'抛向空中划出弧线，穿透打击',
+    evo:{passive:'area', name:'处刑巨斧', tip:'巨斧化作绞肉风车，撕裂全场'},
     tips:['抛出一把巨斧','伤害提升','+1 把斧头','伤害与穿透提升','+1 把斧头','伤害提升','+1 把斧头','伤害与穿透大幅提升'],
     st(lv,P){ return { dmg:24+12*lv, cd:1.7*P.cd, amount:1+Math.floor(lv/3), pierce:lv>=8?8:(lv>=4?5:3), size:1+0.07*lv }; },
     fire(api,w,s){
@@ -69,6 +73,7 @@ const WEAPONS = {
   garlic:{
     name:'圣蒜光环', icon:'ic_garlic', maxLv:8,
     tip:'环绕圣洁光环，持续灼伤并击退',
+    evo:{passive:'heart', name:'圣者领域', tip:'圣光领域扩张成不可逾越的圣域'},
     tips:['圣光环绕自身','伤害提升','范围提升','伤害提升','范围与伤害提升','击退增强','伤害提升','范围与伤害大幅提升'],
     st(lv,P){ return { dmg:(3+2*lv)*P.might, cd:0.5*P.cd, radius:(66+10*lv)*P.area, kb:lv>=6?90:45 }; },
     fire(api,w,s){
@@ -79,15 +84,17 @@ const WEAPONS = {
   bible:{
     name:'圣书环绕', icon:'ic_bible', maxLv:8,
     tip:'圣书环绕护体，周期性激活',
+    evo:{passive:'armor', name:'圣典结界', tip:'六本圣书组成旋转结界'},
     tips:['1本圣书环绕','伤害提升','+1本圣书','持续时间提升','+1本圣书','伤害提升','+1本圣书','伤害与速度大幅提升'],
     st(lv,P){ return { dmg:11+6*lv, cd:5.5*P.cd, dur:3+0.4*Math.floor(lv/4), amount:1+Math.floor(lv/2)-(lv>=8?0:1)-(lv>=2&&lv<4?0:1)+((lv>=2)?1:0), radius:74+8*lv, spin:(3.1+0.15*lv) }; },
     fire(api,w,s){
-      w.active={t:s.dur, ang:0, n:Math.max(1,Math.min(4,1+Math.floor(w.lv/2))), dmg:s.dmg, r:s.radius, spin:s.spin};
+      w.active={t:s.dur, ang:0, n:Math.max(1,Math.min(6,1+Math.floor(w.lv/2)+(w.evolved?2:0))), dmg:s.dmg, r:s.radius, spin:s.spin};
     },
   },
   lightning:{
     name:'天罚闪电', icon:'ic_light', maxLv:8,
     tip:'雷电随机轰击敌人并溅射',
+    evo:{passive:'luck', name:'天罚风暴', tip:'雷霆之海随机轰击全场'},
     tips:['轰击一名敌人','伤害提升','+1 道闪电','溅射范围提升','伤害提升','+1 道闪电','伤害提升','伤害与数量大幅提升'],
     st(lv,P){ return { dmg:30+14*lv, cd:2.3*P.cd, amount:1+Math.floor(lv/3)+(lv>=7?1:0), aoe:(58+7*lv)*P.area }; },
     fire(api,w,s){
@@ -99,6 +106,7 @@ const WEAPONS = {
   cross:{
     name:'圣十字', icon:'ic_cross', maxLv:8,
     tip:'飞出后折返的穿透十字',
+    evo:{passive:'magnetP', name:'圣光回旋刃', tip:'十字化作追踪回旋的圣光之刃'},
     tips:['投出一枚十字','伤害提升','+1 枚十字','伤害与弹速提升','+1 枚十字','伤害提升','+1 枚十字','伤害大幅提升'],
     st(lv,P){ return { dmg:17+8*lv, cd:2.1*P.cd, amount:1+Math.floor(lv/3), speed:(370+15*lv)*P.pspd }; },
     fire(api,w,s){
@@ -115,6 +123,7 @@ const WEAPONS = {
   fire:{
     name:'炼狱火瓶', icon:'ic_fire', maxLv:8,
     tip:'掷出火瓶留下燃烧地带',
+    evo:{passive:'growth', name:'无尽炼狱', tip:'火海更持久更炽热，吞噬一切'},
     tips:['掷出一瓶地狱火','伤害提升','燃烧范围提升','+1 瓶','伤害提升','燃烧时间提升','+1 瓶','伤害与范围大幅提升'],
     st(lv,P){ return { dmg:(5+2.5*lv)*P.might, cd:3.1*P.cd, amount:1+Math.floor(lv/4)+(lv>=8?1:0), radius:(56+8*lv)*P.area, dur:2.6+0.35*Math.floor(lv/6) }; },
     fire(api,w,s){

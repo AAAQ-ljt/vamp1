@@ -142,9 +142,21 @@ function recalcStats(){
 /* ============================================================
  * 武器运行时
  * ============================================================ */
+const EVOLVE_BONUS={knife:4,wand:3,axe:2,lightning:3,cross:2,fire:1,whip:1,bible:2,garlic:0};
 function weaponStats(w){
   const def=WEAPONS[w.id];
   const s=def.st(w.lv,G.P);
+  if(w.evolved){
+    s.dmg=(s.dmg||0)*1.5;
+    if(s.radius) s.radius*=1.25;
+    if(s.aoe) s.aoe*=1.35;
+    if(s.range) s.range*=1.35;
+    if(s.speed) s.speed*=1.25;
+    if(s.spin) s.spin+=1.5;
+    if(s.pierce!==undefined) s.pierce+=2;
+    if(s.dur) s.dur+=1;
+    if(s.amount!==undefined) s.amount+=EVOLVE_BONUS[w.id]||0;
+  }
   if(s.amount!==undefined) s.amount+=G.P.amount;
   return s;
 }
@@ -571,6 +583,22 @@ function applyChoice(c){
 /* 宝箱奖励 */
 function grantChest(){
   AudioSys.sfx('chest');
+  /* 优先：可进化的武器（武器满级 + 指定被动满级） */
+  const evoCand=G.weapons.find(w=>{
+    const def=WEAPONS[w.id];
+    if(w.evolved||w.lv<def.maxLv||!def.evo) return false;
+    const p=PASSIVES[def.evo.passive];
+    return p&&(G.passives[def.evo.passive]||0)>=p.maxLv;
+  });
+  if(evoCand){
+    evoCand.evolved=true;
+    const def=WEAPONS[evoCand.id];
+    showToast(`✦ 武器进化！${def.name} → ${def.evo.name} ✦`,'gold',4.5);
+    AudioSys.sfx('win');
+    G.cam.shake=8;
+    for(let i=0;i<40;i++) addPart(G.player.x+rnd(-30,30),G.player.y-rnd(0,50),rnd(-100,100),rnd(-220,-60),rnd(0.8,1.4),'#f0cf6e',rnd(2,4),true);
+    return;
+  }
   const cands=G.weapons.filter(w=>w.lv<WEAPONS[w.id].maxLv);
   if(cands.length&&Math.random()<0.8){
     const w=pick(cands);
@@ -1088,10 +1116,13 @@ function drawHUD(){
   for(const w of G.weapons){
     const spr=SPR[WEAPONS[w.id].icon];
     ctx.fillStyle='rgba(20,15,30,0.85)'; ctx.fillRect(ix,iy,26,26);
-    ctx.strokeStyle='#3a3050'; ctx.strokeRect(ix+0.5,iy+0.5,25,25);
+    ctx.strokeStyle=w.evolved?'#f0cf6e':'#3a3050'; ctx.lineWidth=w.evolved?2:1;
+    ctx.strokeRect(ix+0.5,iy+0.5,25,25);
+    ctx.lineWidth=1;
     ctx.drawImage(spr.frames[0],ix+3,iy+3,20,20);
+    if(w.evolved){ ctx.fillStyle='#f0cf6e'; ctx.font='bold 9px Consolas,monospace'; ctx.fillText('✦',ix+2,iy+9); }
     ctx.fillStyle='#f0cf6e'; ctx.textAlign='right'; ctx.font='bold 10px Consolas,monospace';
-    ctx.fillText(w.lv,ix+24,iy+10);
+    ctx.fillText(w.lv,ix+24,iy+24);
     ix+=30;
   }
   ix+=6;
@@ -1214,7 +1245,7 @@ window.GAME={
   start(c){ startGame(c||'hunter'); },
   state:()=>state,
   info(){ return G?{state,time:+G.time.toFixed(1),kills:G.kills,level:G.level,hp:Math.ceil(G.player.hp),
-    maxhp:Math.round(G.P.maxhp),enemies:G.enemies.length,weapons:G.weapons.map(w=>w.id+':'+w.lv),
+    maxhp:Math.round(G.P.maxhp),enemies:G.enemies.length,weapons:G.weapons.map(w=>w.id+(w.evolved?'*':'')+':'+w.lv),
     passives:{...G.passives},boss:G.boss?G.boss.id:null,errors:window.__errors.length}:null; },
   god(v){ if(G) G.god=v===undefined?!G.god:v; },
   ts(v){ if(G) G.timeScale=v; },
@@ -1222,6 +1253,8 @@ window.GAME={
   boss(id){ if(G) spawnAtEdge(id,{}); },
   levelUp(n){ if(!G)return; G.luQueue+=n||1; if(state==='playing') openLevelUp(); },
   give(id){ if(G&&WEAPONS[id]) G.weapons.push({id,lv:1,t:0.3,pulse:0,active:null}); },
+  setW(id,lv){ if(!G)return; let w=G.weapons.find(w=>w.id===id); if(!w){ w={id,lv:1,t:0.3,pulse:0,active:null}; G.weapons.push(w); } w.lv=Math.min(lv||8,WEAPONS[id].maxLv); },
+  chest(){ if(G) G.pickups.push({type:'chest',x:G.player.x,y:G.player.y,t:0}); },
   passive(id){ if(G&&PASSIVES[id]){ G.passives[id]=(G.passives[id]||0)+1; recalcStats(); } },
   skip(s){ if(G) G.time+=s; },
   killAll(){ if(G) for(const e of G.enemies) killEnemy(e,false); },

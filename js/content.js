@@ -190,7 +190,7 @@ const EVENTS = [
   { t:840, type:'swarm', e:'imp', n:36, msg:'恶魔群扑来！' },
   { t:900, type:'boss', e:'lord', msg:'⚠ 吸血鬼领主降临！' },
   { t:1000, type:'ring', e:'demon', n:16, msg:'地狱之门开启！' },
-  { t:1080, type:'swarm', e:'skeleton', n:40, msg:'亡者大军压境！' },
+  { t:1080, type:'swarm', e:'skeleton', n:34, msg:'亡者大军压境！' },
   { t:1140, type:'swarm', e:'demon', n:18, elite:2, msg:'最终考验！' },
 ];
 

@@ -310,8 +310,8 @@ function updateProjs(dt){
 /* ============================================================
  * 敌人
  * ============================================================ */
-function hpScale(){ const t=G.time; return 1+t*0.0016+(t>600?(t-600)*0.0022:0); }
-function dmgScale(){ return 1+G.time*0.0006; }
+function hpScale(){ const t=G.time; return 1+t*0.0016+(t>600?(t-600)*0.0019:0); }
+function dmgScale(){ return 1+G.time*0.00055; }
 function spawnEnemy(id, x, y, opts){
   const def=ENEMIES[id];
   opts=opts||{};
@@ -380,7 +380,7 @@ function killEnemy(e, drops){
       G.gems.push(makeGem(e.x,e.y,Math.round(e.xp)));
       const L=G.P.luck;
       if(Math.random()<0.10*L) G.pickups.push({type:'coin',v:1,x:e.x+rnd(-8,8),y:e.y+rnd(-8,8),t:0});
-      if(Math.random()<0.012*L) G.pickups.push({type:'potion',x:e.x,y:e.y,t:0});
+      if(Math.random()<0.016*L) G.pickups.push({type:'potion',x:e.x,y:e.y,t:0});
       else if(Math.random()<0.002*L) G.pickups.push({type:'magnet',x:e.x,y:e.y,t:0});
     }
   }
@@ -650,17 +650,49 @@ function startDying(){
   state='dying'; G.dieT=1.5; AudioSys.sfx('lose');
   AudioSys.play('menu');
 }
+/* 自动走位 AI（测试台/菜单演示用）：逃离敌人压力 + 安全时拾取宝石 + 边界回避 */
+function aiAxes(){
+  const pl=G.player;
+  let sx=0, sy=0;
+  for(const e of G.enemies){
+    if(e.dead||e.spawnT>0) continue;
+    const dx=pl.x-e.x, dy=pl.y-e.y;
+    const dd=dx*dx+dy*dy;
+    if(dd>300*300) continue;
+    const w=1/Math.max(600,dd);
+    sx+=dx*w; sy+=dy*w;
+  }
+  let gx=0, gy=0, best=1e18;
+  for(const g of G.gems){
+    const dx=g.x-pl.x, dy=g.y-pl.y;
+    const dd=dx*dx+dy*dy;
+    if(dd<best&&dd<200*200){ best=dd; gx=dx; gy=dy; }
+  }
+  let ax=sx*2.2+(best<1e18?gx*0.0006:0);
+  let ay=sy*2.2+(best<1e18?gy*0.0006:0);
+  /* 远离世界边界 */
+  const M=220;
+  if(pl.x<M) ax+=0.8; if(pl.x>WORLD-M) ax-=0.8;
+  if(pl.y<M) ay+=0.8; if(pl.y>WORLD-M) ay-=0.8;
+  const l=Math.hypot(ax,ay);
+  if(l<0.04){ ax=Math.cos(G.time*0.6); ay=Math.sin(G.time*0.6); }
+  else{ ax/=l; ay/=l; }
+  return [ax,ay];
+}
 function updatePlayer(dt){
   const pl=G.player;
-  let ax=axisX(), ay=axisY();
+  let ax,ay;
+  if(G.ai){ [ax,ay]=aiAxes(); }
+  else{ ax=axisX(); ay=axisY(); }
   if(ax||ay){
     const l=Math.hypot(ax,ay);
-    ax/=l; ay/=l;
+    if(l>0){ ax/=l; ay/=l; }
     pl.x+=ax*G.P.speed*dt; pl.y+=ay*G.P.speed*dt;
     pl.walkT+=dt;
+    pl.moving=true;
     if(ax!==0) pl.face=ax>0?1:-1;
     pl.faceA=Math.atan2(ay,ax);
-  }
+  } else pl.moving=false;
   pl.x=clamp(pl.x,20,WORLD-20); pl.y=clamp(pl.y,20,WORLD-20);
   pl.iframes=Math.max(0,pl.iframes-dt);
   pl.hurtF=Math.max(0,pl.hurtF-dt);
@@ -1072,7 +1104,7 @@ function drawPlayer(){
   const pl=G.player;
   if(pl.iframes>0&&Math.floor(G.time*18)%2===0&&state==='playing') return;
   const spr=SPR.heroA;
-  const moving=axisX()||axisY();
+  const moving=pl.moving;
   const f=moving?Math.floor(pl.walkT*8)%2:0;
   if(pl.hurtF>0.2) drawSpr(spr,pl.x,pl.y,{f,white:true});
   else drawSpr(spr,pl.x,pl.y,{f,flip:pl.face<0});
@@ -1347,6 +1379,25 @@ window.GAME={
   killAll(){ if(G) for(const e of G.enemies) killEnemy(e,false); },
   hurt(n){ if(G) hurtPlayer(n||10); },
   gold(n){ if(G) G.gold+=n||50; },
+  /* 平衡测试台：按对局时间布置"典型玩家 build" */
+  buildout(t){
+    if(!G) return;
+    const stages=[
+      {t:0,   w:[['whip',2]], p:{might:1}},
+      {t:150, w:[['whip',3],['knife',2]], p:{might:2,tome:1}},
+      {t:330, w:[['whip',4],['knife',3],['wand',3]], p:{might:3,tome:2,area:1}},
+      {t:560, w:[['whip',5],['knife',4],['wand',4],['garlic',3]], p:{might:4,tome:3,area:2,wings:1}},
+      {t:830, w:[['whip',7],['knife',6],['wand',5],['garlic',4]], p:{might:5,tome:4,area:3,wings:2,heart:2}},
+      {t:1050,w:[['whip',8],['knife',8],['wand',7],['garlic',6]], p:{might:5,tome:5,area:4,wings:3,heart:3}},
+    ];
+    let s=stages[0];
+    for(const st of stages) if(t>=st.t) s=st;
+    G.weapons=s.w.map(([id,lv])=>({id,lv,t:0.2,pulse:0,active:null}));
+    G.passives={...s.p};
+    recalcStats();
+    G.player.hp=Math.min(G.player.hp,G.P.maxhp);
+    return s.t;
+  },
   screenshotHint(){ return 'window.GAME.info()'; },
 };
 
@@ -1365,9 +1416,11 @@ function boot(){
   if(q.has('autotest')){
     setTimeout(()=>{
       startGame(q.get('char')||'hunter');
-      G.god=true;
+      G.god=!q.has('nogod');
+      if(q.has('ai')) G.ai=true;
       if(q.has('speed')) G.timeScale=parseFloat(q.get('speed'))||3;
       if(q.has('t')) G.time=parseFloat(q.get('t'));
+      if(q.has('build')) GAME.buildout(parseFloat(q.get('build'))||G.time);
     },400);
   }
 }

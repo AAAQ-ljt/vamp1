@@ -235,7 +235,7 @@ function weaponAPI(){
       applySlashDamage(s);
       G.slashes.push(s);
     },
-    zone(x,y,r,dur,dmg,kind){ G.zones.push({x,y,r,dur,t:0,tick:0,dmg,kind,uid:uidC++}); },
+    zone(x,y,r,dur,dmg,kind,opts){ const z={x,y,r,dur,t:0,tick:0,dmg,kind,uid:uidC++}; if(opts) Object.assign(z,opts); G.zones.push(z); },
     bolt(x,y,dmg,aoe){
       G.bolts.push({x,y,t:0,dur:0.28,seed:Math.random()*7});
       queryCircle(x,y,aoe,_q);
@@ -334,6 +334,16 @@ function updateProjs(dt){
         if(d2(z.x,z.y,G.player.x,G.player.y)<z.r*z.r){
           G.player.hp=Math.min(G.P.maxhp,G.player.hp+4);
           if(Math.random()<0.5) addPart(G.player.x+rnd(-14,14),G.player.y-rnd(0,20),0,-50,0.5,'#f0cf6e',2,true);
+        }
+      } else if(z.kind==='vortex'){
+        queryCircle(z.x,z.y,z.r,_q);
+        for(const e of _q){
+          damageEnemy(e,z.dmg,0,0);
+          const dx=z.x-e.x, dy=z.y-e.y;
+          const l=Math.hypot(dx,dy)||1;
+          const pull=(z.pull||14)*(e.boss?0.15:1);
+          e.x+=dx/l*pull; e.y+=dy/l*pull;
+          if(Math.random()<0.35) addPart(e.x+rnd(-6,6),e.y-6,dx/l*80+rnd(-25,25),dy/l*80+rnd(-25,25),0.4,'#a06bb5',2,true);
         }
       } else {
         queryCircle(z.x,z.y,z.r,_q);
@@ -1030,11 +1040,18 @@ function render(){
   /* 燃烧地带 */
   for(const z of G.zones){
     const a=clamp(1-(z.t/z.dur),0,1);
-    const fill=z.kind==='poison'?'122,167,95':z.kind==='heal'?'240,207,110':'207,114,34';
-    const edge=z.kind==='poison'?'168,201,127':z.kind==='heal'?'247,233,176':'235,154,74';
-    ctx.beginPath(); ctx.arc(z.x,z.y,z.r*(0.6+0.4*Math.min(1,z.t*4)),0,TAU);
+    const fill=z.kind==='poison'?'122,167,95':z.kind==='heal'?'240,207,110':z.kind==='vortex'?'123,74,140':'207,114,34';
+    const edge=z.kind==='poison'?'168,201,127':z.kind==='heal'?'247,233,176':z.kind==='vortex'?'160,107,181':'235,154,74';
+    ctx.beginPath();
+    const vr=z.kind==='vortex'? z.r*(0.55+0.1*Math.sin(z.t*9)) : z.r*(0.6+0.4*Math.min(1,z.t*4));
+    ctx.arc(z.x,z.y,vr,0,TAU);
     ctx.fillStyle=`rgba(${fill},${0.22*a})`; ctx.fill();
     ctx.strokeStyle=`rgba(${edge},${0.5*a})`; ctx.lineWidth=2; ctx.stroke();
+    if(z.kind==='vortex'){
+      ctx.strokeStyle=`rgba(160,107,181,${0.35*a})`; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(z.x,z.y,vr*0.55,z.t*7,z.t*7+4.4); ctx.stroke();
+      ctx.beginPath(); ctx.arc(z.x,z.y,vr*0.3,-z.t*9,-z.t*9+3.6); ctx.stroke();
+    }
   }
   /* 宝石 */
   for(const g of G.gems){

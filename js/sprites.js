@@ -460,6 +460,43 @@ RAW.ic_totem=[
 "....knnk....",
 "...kkkkkk...",
 ];
+RAW.ic_vortex=[
+"....kkkk....",
+"..kkPPPPkk..",
+".kPkkkkkkPk.",
+".kPk....kPk.",
+"kPPk.kk.kPPk",
+"kPkkk..kkkPk",
+"kPkkk..kkkPk",
+"kPPk.kk.kPPk",
+".kPk....kPk.",
+".kPkkkkkkPk.",
+"..kkPPPPkk..",
+"....kkkk....",
+];
+RAW.shadow=[
+"....kkkkkk....",
+"...kppppppk...",
+"..kppppppppk..",
+".kppppppppppk.",
+".kpdkkkkkkdpk.",
+".kpderkkerdpk.",
+".kpdkkkkkkdpk.",
+".kppppppppppk.",
+"..kppppppppk..",
+".kppppppppppk.",
+".kpkppppppkpk.",
+"..kk.kppk.kk..",
+".....kppk.....",
+"....kpkpk.....",
+".....k.k......",
+"..............",
+];
+RAW.shadow2=RAW.shadow.slice(0,13).concat([
+"....kpkpk.....",
+"....k...k.....",
+"..............",
+]);
 
 /* ---- 武器图标 (12x12) ---- */
 RAW.ic_whip=[
@@ -744,6 +781,7 @@ function buildSprites(){
   SPR.treeA  = defSprite([RAW.tree],2);
   SPR.bonesA = defSprite([RAW.bones],2);
   SPR.coinA  = defSprite([RAW.coin],2);
+  SPR.shadowA= defSprite([RAW.shadow, RAW.shadow2]);
 }
 /* 通用绘制：底边中心锚点，支持翻转/缩放/闪白/透明 */
 function drawSpr(spr, x, y, o){

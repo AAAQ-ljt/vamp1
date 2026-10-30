@@ -446,6 +446,20 @@ RAW.coin=[
 ".kyyyyk.",
 "..kkkk..",
 ];
+RAW.ic_totem=[
+"....kk......",
+"...kgggk....",
+"..kgGgGgk...",
+"...kgggk....",
+"...kxxxxk...",
+"..kxkxxkxk..",
+"..kxxxxxxk..",
+"..kxkxxkxk..",
+"...kxxxxk...",
+"....knnk....",
+"....knnk....",
+"...kkkkkk...",
+];
 
 /* ---- 武器图标 (12x12) ---- */
 RAW.ic_whip=[

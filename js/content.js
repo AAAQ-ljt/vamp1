@@ -136,6 +136,20 @@ const WEAPONS = {
       api.sfx('slash');
     },
   },
+  totem:{
+    name:'毒图腾', icon:'ic_totem', maxLv:8,
+    tip:'放置毒图腾，持续释放毒云侵蚀',
+    evo:{passive:'wings', name:'瘟疫之柱', tip:'毒云扩张成蔓延的瘟疫之地'},
+    tips:['放置一座毒图腾','伤害提升','+1 座图腾','持续时间提升','伤害提升','+1 座图腾','毒云范围提升','伤害与数量大幅提升'],
+    st(lv,P){ return { dmg:(5+2.6*lv)*P.might, cd:5.2*P.cd, amount:1+Math.floor(lv/3)+(lv>=8?1:0), radius:(58+7*lv)*P.area, dur:5+0.5*Math.floor(lv/2) }; },
+    fire(api,w,s){
+      for(let i=0;i<s.amount;i++){
+        const a=Math.random()*TAU, r=40+Math.random()*70;
+        api.zone(api.px+Math.cos(a)*r, api.py+Math.sin(a)*r, s.radius, s.dur, s.dmg, 'poison');
+      }
+      api.sfx('slash');
+    },
+  },
 };
 
 /* ---------- 被动道具 ---------- */
@@ -188,7 +202,10 @@ const EVENTS = [
   { t:600, type:'boss', e:'golem', msg:'⚠ 血岩傀儡苏醒！' },
   { t:720, type:'ring', e:'ghost', n:30, msg:'怨灵萦绕……' },
   { t:840, type:'swarm', e:'imp', n:36, msg:'恶魔群扑来！' },
+  { t:660, type:'heal', msg:'✚ 天使之光降临！' },
+  { t:760, type:'firewall', msg:'火墙走廊来袭！' },
   { t:900, type:'boss', e:'lord', msg:'⚠ 吸血鬼领主降临！' },
+  { t:950, type:'chestrain', msg:'宝箱雨！抬头看！' },
   { t:1000, type:'ring', e:'demon', n:16, msg:'地狱之门开启！' },
   { t:1080, type:'swarm', e:'skeleton', n:34, msg:'亡者大军压境！' },
   { t:1140, type:'swarm', e:'demon', n:18, elite:2, msg:'最终考验！' },

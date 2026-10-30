@@ -94,6 +94,17 @@ const _q=[];
 /* ============================================================
  * 对局创建
  * ============================================================ */
+/* 主菜单演示对局：AI 用典型开局在后台自动游玩 */
+function startDemo(){
+  startGame('hunter');
+  G.ai=true; G.god=true; G.demo=true; G.timeScale=0.75;
+  G.weapons=[{id:'whip',lv:3,t:0.3,pulse:0,active:null},{id:'wand',lv:2,t:0.3,pulse:0,active:null},{id:'garlic',lv:2,t:0.3,pulse:0,active:null}];
+  recalcStats();
+  G.time=120+Math.random()*120;
+  state='menu';
+  showScreen('menu');
+  if(AudioSys.ctx) AudioSys.play('menu');
+}
 function startGame(charId){
   const ch=CHARACTERS[charId]||CHARACTERS.hunter;
   G={
@@ -291,10 +302,18 @@ function updateProjs(dt){
     z.t+=dt; z.tick-=dt;
     if(z.tick<=0){
       z.tick=0.5;
-      queryCircle(z.x,z.y,z.r,_q);
-      for(const e of _q) damageEnemy(e,z.dmg,0,0);
+      if(z.kind==='heal'){
+        if(d2(z.x,z.y,G.player.x,G.player.y)<z.r*z.r){
+          G.player.hp=Math.min(G.P.maxhp,G.player.hp+4);
+          if(Math.random()<0.5) addPart(G.player.x+rnd(-14,14),G.player.y-rnd(0,20),0,-50,0.5,'#f0cf6e',2,true);
+        }
+      } else {
+        queryCircle(z.x,z.y,z.r,_q);
+        for(const e of _q) damageEnemy(e,z.dmg,0,0);
+      }
     }
-    if(Math.random()<0.5) addPart(z.x+rnd(-z.r,z.r)*0.8,z.y+rnd(-z.r,z.r)*0.5,rnd(-15,15),rnd(-70,-30),0.6,'#eb9a4a',3,true);
+    const pc=z.kind==='poison'?'#78a75f':z.kind==='heal'?'#f0cf6e':'#eb9a4a';
+    if(Math.random()<0.5) addPart(z.x+rnd(-z.r,z.r)*0.8,z.y+rnd(-z.r,z.r)*0.5,rnd(-15,15),rnd(-70,-30),0.6,pc,3,z.kind!=='poison');
     if(z.t>=z.dur) z.dead=true;
   }
   G.zones=G.zones.filter(z=>!z.dead);
@@ -334,7 +353,7 @@ function spawnEnemy(id, x, y, opts){
   if(!G.seen) G.seen={};
   if(!G.seen[id]){
     G.seen[id]=1;
-    if(def.first&&G.time>60) showToast('⚠ 新怪物出现：'+def.name,'warn',2.4);
+    if(def.first&&G.time>60&&!G.demo) showToast('⚠ 新怪物出现：'+def.name,'warn',2.4);
   }
   if(def.boss){ G.boss=e; AudioSys.sfx('boss'); G.cam.shake=Math.max(G.cam.shake,8); }
   return e;
@@ -499,6 +518,22 @@ function updateDirector(dt){
       }
     } else if(ev.type==='swarm'){
       for(let i=0;i<ev.n;i++) spawnAtEdge(ev.e,{elite:ev.elite&&i<ev.elite});
+    } else if(ev.type==='chestrain'){
+      for(let i=0;i<2;i++){ const a=rnd(TAU), r=rnd(120,240);
+        G.pickups.push({type:'chest',x:clamp(G.player.x+Math.cos(a)*r,40,WORLD-40),y:clamp(G.player.y+Math.sin(a)*r,40,WORLD-40),t:0}); }
+    } else if(ev.type==='heal'){
+      for(let i=0;i<3;i++){ const a=rnd(TAU), r=rnd(60,200);
+        G.zones.push({x:clamp(G.player.x+Math.cos(a)*r,40,WORLD-40),y:clamp(G.player.y+Math.sin(a)*r,40,WORLD-40),r:72,dur:7,t:0,tick:0,dmg:0,kind:'heal',uid:uidC++}); }
+    } else if(ev.type==='firewall'){
+      const vert=Math.random()<0.5;
+      const near=Math.random()<0.5?-540:540;
+      for(let i=-6;i<=6;i++){
+        const off=i*62;
+        let x,y;
+        if(vert){ x=G.player.x+off; y=G.player.y+near; }
+        else{ x=G.player.x+near; y=G.player.y+off; }
+        G.zones.push({x:clamp(x,40,WORLD-40),y:clamp(y,40,WORLD-40),r:52,dur:5,t:0,tick:0,dmg:12,kind:'fire',uid:uidC++});
+      }
     } else if(ev.type==='boss'){
       spawnAtEdge(ev.e);
     }
@@ -795,6 +830,17 @@ function frame(now){
 }
 function step(dt){
   if(!G) { menuT+=dt; updateMenuBats(dt); return; }
+  /* 主菜单演示对局：AI 自动游玩作为背景 */
+  if(G.demo){
+    const ts=dt*G.timeScale;
+    G.time+=ts;
+    if(G.time>520){ G.time=130; G.enemies.length=0; G.projs.length=0; G.gems.length=0; G.pickups.length=0; G.zones.length=0; G.texts.length=0; }
+    updatePlayer(ts); updateDirector(ts); updateWeapons(ts); updateProjs(ts); updateEnemies(ts); updatePickups(ts); updateFx(ts);
+    G.cam.x=lerp(G.cam.x,G.player.x,1-Math.pow(0.001,dt));
+    G.cam.y=lerp(G.cam.y,G.player.y,1-Math.pow(0.001,dt));
+    G.cam.shake=Math.max(0,G.cam.shake-dt*22);
+    return;
+  }
   let ts=(state==='dying')?dt*0.3:(state==='winning')?dt:dt*G.timeScale;
   if(G.hitstop>0&&state==='playing'){ G.hitstop-=dt; ts*=0.12; }
   if(state==='playing'||state==='dying'||state==='winning'){
@@ -910,7 +956,7 @@ function render(){
   if(!groundPat) buildGround();
   ctx.fillStyle='#060409';
   ctx.fillRect(0,0,VW,VH);
-  if(!G||state==='menu'||state==='charsel'){ renderMenu(); return; }
+  if(!G||state==='charsel'||(state==='menu'&&!G.demo)){ renderMenu(); return; }
 
   const camX=G.cam.x-VW/2+(G.cam.shake?rnd(-G.cam.shake,G.cam.shake):0);
   const camY=G.cam.y-VH/2+(G.cam.shake?rnd(-G.cam.shake,G.cam.shake):0);
@@ -941,9 +987,11 @@ function render(){
   /* 燃烧地带 */
   for(const z of G.zones){
     const a=clamp(1-(z.t/z.dur),0,1);
+    const fill=z.kind==='poison'?'122,167,95':z.kind==='heal'?'240,207,110':'207,114,34';
+    const edge=z.kind==='poison'?'168,201,127':z.kind==='heal'?'247,233,176':'235,154,74';
     ctx.beginPath(); ctx.arc(z.x,z.y,z.r*(0.6+0.4*Math.min(1,z.t*4)),0,TAU);
-    ctx.fillStyle=`rgba(207,114,34,${0.22*a})`; ctx.fill();
-    ctx.strokeStyle=`rgba(235,154,74,${0.5*a})`; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle=`rgba(${fill},${0.22*a})`; ctx.fill();
+    ctx.strokeStyle=`rgba(${edge},${0.5*a})`; ctx.lineWidth=2; ctx.stroke();
   }
   /* 宝石 */
   for(const g of G.gems){
@@ -1070,6 +1118,11 @@ function render(){
 
   /* 状态叠加 */
   ctx.drawImage(vignette,0,0);
+  if(G.demo){
+    /* 演示模式：轻微暗化做菜单背景 */
+    ctx.fillStyle='rgba(8,6,14,0.18)'; ctx.fillRect(0,0,VW,VH);
+    return;
+  }
   if(G.player.hurtF>0){ ctx.fillStyle=`rgba(184,56,62,${0.42*G.player.hurtF/0.55})`; ctx.fillRect(0,0,VW,VH); }
   if(state==='dying'){ ctx.fillStyle=`rgba(60,4,10,${0.35+0.2*Math.sin(G.time*10)})`; ctx.fillRect(0,0,VW,VH); }
   if(state==='winning'||state==='win'){
@@ -1299,6 +1352,7 @@ function bestStatLine(){
   }catch(e){ return '暂无'; }
 }
 function showToast(msg,cls,dur){
+  if(typeof G!=='undefined'&&G&&G.demo) return;
   const t=document.getElementById('toast');
   t.textContent=msg;
   t.className='show'+(cls?' '+cls:'');
@@ -1318,10 +1372,7 @@ function resumeGame(){ if(state==='paused'){ state='playing'; showScreen(null); 
 function togglePause(){ if(state==='playing') pauseGame(); else if(state==='paused') resumeGame(); }
 function toMenu(){
   bankRun();
-  state='menu'; G=null;
-  document.getElementById('bestline').textContent=bestLine();
-  showScreen('menu');
-  AudioSys.play('menu');
+  startDemo();
 }
 function buildCharCards(){
   const box=document.getElementById('charcards');
@@ -1422,6 +1473,8 @@ function boot(){
       if(q.has('t')) G.time=parseFloat(q.get('t'));
       if(q.has('build')) GAME.buildout(parseFloat(q.get('build'))||G.time);
     },400);
+  } else if(!q.has('nodemo')){
+    setTimeout(startDemo,600);
   }
 }
 boot();

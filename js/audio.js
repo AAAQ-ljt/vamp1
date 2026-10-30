@@ -32,7 +32,7 @@ const AudioSys = {
       }catch(e){ /* 无音频环境 */ }
     }
     if(this.ctx && this.ctx.state==='suspended') this.ctx.resume();
-    if(this.ctx && !this.started){ this.started=true; this.play('game'); }
+    if(this.ctx && !this.started){ this.started=true; this.play('menu'); }
   },
   setMuted(m){
     this.muted=m;
@@ -71,6 +71,7 @@ const AudioSys = {
   },
   sfx(name){
     if(!this.ctx||this.muted) return;
+    if(typeof G!=='undefined'&&G&&G.demo) return; // 演示模式静音游戏音效
     switch(name){
       case 'shoot': this.tone({type:'square',f:720,f2:180,dur:0.07,v:0.10}); break;
       case 'slash': this.noise({hp:900,dur:0.09,v:0.16}); this.tone({type:'sawtooth',f:300,f2:120,dur:0.08,v:0.07}); break;

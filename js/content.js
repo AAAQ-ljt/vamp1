@@ -147,11 +147,11 @@ const PASSIVES = {
 const ENEMIES = {
   bat:     { name:'蝙蝠', spr:'batA', anim:9,  hp:8,   spd:96,  dmg:4,  xp:1,  r:11, wobble:1 },
   zombie:  { name:'僵尸', spr:'zombieA', anim:4, hp:26, spd:50, dmg:8, xp:2, r:13 },
-  skeleton:{ name:'骷髅', spr:'skeletonA', anim:5, hp:42, spd:78, dmg:11, xp:3, r:13 },
-  ghost:   { name:'幽灵', spr:'ghostA', anim:3, hp:60, spd:86, dmg:13, xp:5, r:13, ghost:true },
-  imp:     { name:'小恶魔', spr:'impA', anim:7, hp:48, spd:116, dmg:11, xp:6, r:12, zigzag:1 },
-  slime:   { name:'史莱姆', spr:'slimeA', anim:3, hp:115, spd:36, dmg:15, xp:9, r:17, squash:1 },
-  demon:   { name:'大恶魔', spr:'demonA', anim:4, hp:200, spd:64, dmg:18, xp:14, r:16 },
+  skeleton:{ name:'骷髅', spr:'skeletonA', anim:5, hp:42, spd:78, dmg:11, xp:3, r:13, first:1 },
+  ghost:   { name:'幽灵', spr:'ghostA', anim:3, hp:60, spd:86, dmg:13, xp:5, r:13, ghost:true, first:1 },
+  imp:     { name:'小恶魔', spr:'impA', anim:7, hp:48, spd:116, dmg:11, xp:6, r:12, zigzag:1, first:1 },
+  slime:   { name:'史莱姆', spr:'slimeA', anim:3, hp:115, spd:36, dmg:15, xp:9, r:17, squash:1, first:1 },
+  demon:   { name:'大恶魔', spr:'demonA', anim:4, hp:200, spd:64, dmg:18, xp:14, r:16, first:1 },
   /* 头目 */
   reaper:  { name:'死神', spr:'reaperA', anim:2, hp:1700, spd:62, dmg:26, xp:80, r:26, boss:1, dash:1, size:1.15 },
   golem:   { name:'血岩傀儡', spr:'golemA', anim:1, hp:5600, spd:38, dmg:34, xp:120, r:30, boss:1, slam:1, size:1.1 },

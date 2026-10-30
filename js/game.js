@@ -104,7 +104,7 @@ function startGame(charId){
     enemies:[], projs:[], gems:[], pickups:[], parts:[], texts:[], slashes:[], zones:[], bolts:[],
     cam:{x:WORLD/2,y:WORLD/2,shake:0},
     spawnT:1.2, evIdx:0, boss:null,
-    timeScale:1, god:false, dieT:0, winT:0, paused:false,
+    timeScale:1, god:false, dieT:0, winT:0, paused:false, hitstop:0,
     gemsGot:0,
   };
   Pmods=ch.mods||{};
@@ -306,6 +306,11 @@ function spawnEnemy(id, x, y, opts){
   e.hp=e.maxhp;
   e.dmg=Math.round(def.dmg*(elite?1.5:1));
   G.enemies.push(e);
+  if(!G.seen) G.seen={};
+  if(!G.seen[id]){
+    G.seen[id]=1;
+    if(def.first&&G.time>60) showToast('⚠ 新怪物出现：'+def.name,'warn',2.4);
+  }
   if(def.boss){ G.boss=e; AudioSys.sfx('boss'); G.cam.shake=Math.max(G.cam.shake,8); }
   return e;
 }
@@ -374,22 +379,29 @@ function updateEnemies(dt){
     if(def.squash) sp*= 0.7+0.5*Math.abs(Math.sin(G.time*2+e.seed));
     /* 头目技能 */
     if(e.boss){
+      if(!e.enraged&&e.hp<e.maxhp*0.5){
+        e.enraged=true; e.cdMul=0.62; e.spd=e.spd*1.3;
+        addText(e.x,e.y-e.r-16,'狂暴！','#e04a4a');
+        AudioSys.sfx('boss'); G.cam.shake=Math.max(G.cam.shake,6);
+        for(let i=0;i<14;i++) addPart(e.x+rnd(-e.r,e.r),e.y-rnd(0,e.r*2),rnd(-80,80),rnd(-140,-30),0.6,'#e04a4a',3,true);
+      }
       e.stT-=dt;
+      const cdM=e.cdMul||1;
       if(def.dash){
         if(e.stMode===0 && e.stT<=0){ e.stMode=1; e.stT=0.7; }
         else if(e.stMode===1 && e.stT<=0){ e.stMode=2; e.stT=0.9; }
-        else if(e.stMode===2 && e.stT<=0){ e.stMode=0; e.stT=5.5; }
+        else if(e.stMode===2 && e.stT<=0){ e.stMode=0; e.stT=5.5*cdM; }
         if(e.stMode===1){ sp=0; if(Math.random()<0.4) addPart(e.x+rnd(-e.r,e.r),e.y-rnd(0,20),0,-50,0.3,'#e04a4a',3,true); }
         if(e.stMode===2){ sp=e.spd*3.6; }
       }
       if(def.slam && e.stT<=0){
-        e.stT=4.5;
+        e.stT=4.5*cdM;
         for(let i=0;i<26;i++){ const a=i/26*TAU; addPart(e.x+Math.cos(a)*30,e.y+Math.sin(a)*30,Math.cos(a)*220,Math.sin(a)*220,0.5,'#b3ac9a',4,false); }
         G.cam.shake=Math.max(G.cam.shake,7);
         if(d2(e.x,e.y,pl.x,pl.y)<150*150) hurtPlayer(e.dmg*0.8);
       }
       if(def.summon && e.stT<=0){
-        e.stT=6;
+        e.stT=6*cdM;
         for(let i=0;i<5;i++){ const a=rnd(TAU); spawnEnemy('bat',e.x+Math.cos(a)*50,e.y+Math.sin(a)*50); }
         addText(e.x,e.y-e.r-14,'召唤！','#d97098');
       }
@@ -583,7 +595,8 @@ function hurtPlayer(raw){
   if(G.god) return;
   const dmg=Math.max(1,Math.round(raw-G.P.armor));
   G.player.hp-=dmg;
-  G.player.iframes=0.8; G.player.hurtF=0.4;
+  G.player.iframes=0.8; G.player.hurtF=0.55;
+  G.hitstop=0.09;
   G.cam.shake=Math.max(G.cam.shake,5);
   addText(G.player.x,G.player.y-30,'-'+dmg,'#e04a4a');
   AudioSys.sfx('hurt');
@@ -696,7 +709,8 @@ function frame(now){
 }
 function step(dt){
   if(!G) { menuT+=dt; updateMenuBats(dt); return; }
-  const ts=(state==='dying')?dt*0.3:(state==='winning')?dt:dt*G.timeScale;
+  let ts=(state==='dying')?dt*0.3:(state==='winning')?dt:dt*G.timeScale;
+  if(G.hitstop>0&&state==='playing'){ G.hitstop-=dt; ts*=0.12; }
   if(state==='playing'||state==='dying'||state==='winning'){
     if(state!=='winning') G.time+=ts;
     updatePlayer(ts);
@@ -959,7 +973,7 @@ function render(){
 
   /* 状态叠加 */
   ctx.drawImage(vignette,0,0);
-  if(G.player.hurtF>0){ ctx.fillStyle=`rgba(184,56,62,${0.28*G.player.hurtF/0.4})`; ctx.fillRect(0,0,VW,VH); }
+  if(G.player.hurtF>0){ ctx.fillStyle=`rgba(184,56,62,${0.42*G.player.hurtF/0.55})`; ctx.fillRect(0,0,VW,VH); }
   if(state==='dying'){ ctx.fillStyle=`rgba(60,4,10,${0.35+0.2*Math.sin(G.time*10)})`; ctx.fillRect(0,0,VW,VH); }
   if(state==='winning'||state==='win'){
     const a=state==='win'?0.5:0.35*(2.8-G.winT)/2.8;
@@ -974,6 +988,12 @@ function drawEnemy(e){
   const spr=SPR[def.spr];
   const f=Math.floor(e.animT*def.anim)%spr.frames.length;
   let sc=(def.size||1)*(e.elite?1.45:1);
+  if(e.enraged){
+    ctx.save(); ctx.globalAlpha=0.28+0.09*Math.sin(G.time*9);
+    ctx.fillStyle='#e04a4a';
+    ctx.beginPath(); ctx.ellipse(e.x,e.y,e.r*1.6*sc,e.r*0.85*sc,0,0,TAU); ctx.fill();
+    ctx.restore();
+  }
   const alpha=e.spawnT>0?clamp(1-e.spawnT/0.6,0.2,1):(def.ghost?0.78+0.14*Math.sin(G.time*3+e.seed):1);
   if(e.flashT>0) drawSpr(spr,e.x,e.y,{f,white:true,scale:sc,alpha});
   else drawSpr(spr,e.x,e.y,{f,scale:sc,alpha,flip:(G.player.x<e.x)});

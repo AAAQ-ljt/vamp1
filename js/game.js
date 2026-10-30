@@ -49,8 +49,36 @@ function bindInput(){
   window.addEventListener('blur',()=>{ if(state==='playing') pauseGame(); });
   document.addEventListener('visibilitychange',()=>{ if(document.hidden&&state==='playing') pauseGame(); });
 }
-function axisX(){ return (keys['d']||keys['arrowright']?1:0)-(keys['a']||keys['arrowleft']?1:0); }
-function axisY(){ return (keys['s']||keys['arrowdown']?1:0)-(keys['w']||keys['arrowup']?1:0); }
+function axisX(){
+  if(touch.active&&Math.abs(touch.dx)>8) return clamp(touch.dx/40,-1,1);
+  return (keys['d']||keys['arrowright']?1:0)-(keys['a']||keys['arrowleft']?1:0);
+}
+function axisY(){
+  if(touch.active&&Math.abs(touch.dy)>8) return clamp(touch.dy/40,-1,1);
+  return (keys['s']||keys['arrowdown']?1:0)-(keys['w']||keys['arrowup']?1:0);
+}
+/* ---------- 触屏虚拟摇杆 ---------- */
+const touch={active:false,id:-1,ox:0,oy:0,dx:0,dy:0};
+function bindTouch(){
+  cv.addEventListener('pointerdown',e=>{
+    if(e.pointerType!=='touch') return;
+    touch.active=true; touch.id=e.pointerId;
+    touch.ox=e.clientX; touch.oy=e.clientY; touch.dx=0; touch.dy=0;
+  });
+  cv.addEventListener('pointermove',e=>{
+    if(!touch.active||e.pointerId!==touch.id) return;
+    touch.dx=e.clientX-touch.ox; touch.dy=e.clientY-touch.oy;
+    const l=Math.hypot(touch.dx,touch.dy);
+    if(l>52){
+      const nx=touch.dx/l*52, ny=touch.dy/l*52;
+      touch.ox=e.clientX-nx; touch.oy=e.clientY-ny;
+      touch.dx=nx; touch.dy=ny;
+    }
+  });
+  const up=e=>{ if(e.pointerId===touch.id){ touch.active=false; touch.dx=0; touch.dy=0; } };
+  cv.addEventListener('pointerup',up);
+  cv.addEventListener('pointercancel',up);
+}
 
 /* ---------- 全局状态 ---------- */
 let state='menu';   // menu charsel playing levelup paused dying dead winning win
@@ -342,10 +370,10 @@ function spawnEnemy(id, x, y, opts){
     elite, flashT:0, kx:0, ky:0, dead:false, spawnT:def.boss?0.6:0.25,
     seed:Math.random()*10, animT:Math.random()*2, wcd:{},
     phT:rnd(0.8), phS:Math.random()<0.5?1:-1,
-    stT:0, stMode:0, // 头目技能状态
+    stT:def.dash2?rnd(1.5,3):0, stMode:0, // 头目/猎手技能状态
   };
   if(!def.boss){
-    e.maxhp=Math.round(def.hp*hpScale()*(elite?9:1));
+    e.maxhp=def.noScale? Math.round(def.hp) : Math.round(def.hp*hpScale()*(elite?9:1));
   } else { e.maxhp=Math.round(def.hp); }
   e.hp=e.maxhp;
   e.dmg=Math.round(def.dmg*(elite?1.5:1));
@@ -424,9 +452,9 @@ function updateEnemies(dt){
     if(def.wobble){ const px=-dy,py=dx; const w=Math.sin(G.time*5+e.seed)*0.7; dx+=px*w; dy+=py*w; }
     if(def.zigzag){ e.phT-=dt; if(e.phT<=0){e.phT=0.7;e.phS*=-1;} const px=-dy,py=dx; dx+=px*0.8*e.phS; dy+=py*0.8*e.phS; }
     if(def.squash) sp*= 0.7+0.5*Math.abs(Math.sin(G.time*2+e.seed));
-    /* 头目技能 */
-    if(e.boss){
-      if(!e.enraged&&e.hp<e.maxhp*0.5){
+    /* 头目技能 / 暗影猎手冲刺 */
+    if(e.boss||def.dash2){
+      if(!e.enraged&&e.boss&&e.hp<e.maxhp*0.5){
         e.enraged=true; e.cdMul=0.62; e.spd=e.spd*1.3;
         addText(e.x,e.y-e.r-16,'狂暴！','#e04a4a');
         AudioSys.sfx('boss'); G.cam.shake=Math.max(G.cam.shake,6);
@@ -434,10 +462,11 @@ function updateEnemies(dt){
       }
       e.stT-=dt;
       const cdM=e.cdMul||1;
-      if(def.dash){
+      if(def.dash||def.dash2){
+        const dashCd=(def.dash2?3.2:5.5)*cdM;
         if(e.stMode===0 && e.stT<=0){ e.stMode=1; e.stT=0.7; }
         else if(e.stMode===1 && e.stT<=0){ e.stMode=2; e.stT=0.9; }
-        else if(e.stMode===2 && e.stT<=0){ e.stMode=0; e.stT=5.5*cdM; }
+        else if(e.stMode===2 && e.stT<=0){ e.stMode=0; e.stT=dashCd; }
         if(e.stMode===1){ sp=0; if(Math.random()<0.4) addPart(e.x+rnd(-e.r,e.r),e.y-rnd(0,20),0,-50,0.3,'#e04a4a',3,true); }
         if(e.stMode===2){ sp=e.spd*3.6; }
       }
@@ -521,6 +550,8 @@ function updateDirector(dt){
     } else if(ev.type==='chestrain'){
       for(let i=0;i<2;i++){ const a=rnd(TAU), r=rnd(120,240);
         G.pickups.push({type:'chest',x:clamp(G.player.x+Math.cos(a)*r,40,WORLD-40),y:clamp(G.player.y+Math.sin(a)*r,40,WORLD-40),t:0}); }
+    } else if(ev.type==='hunters'){
+      for(let i=0;i<ev.n;i++) spawnAtEdge('hunter',{});
     } else if(ev.type==='heal'){
       for(let i=0;i<3;i++){ const a=rnd(TAU), r=rnd(60,200);
         G.zones.push({x:clamp(G.player.x+Math.cos(a)*r,40,WORLD-40),y:clamp(G.player.y+Math.sin(a)*r,40,WORLD-40),r:72,dur:7,t:0,tick:0,dmg:0,kind:'heal',uid:uidC++}); }
@@ -808,6 +839,18 @@ function genDecor(){
     let x=rnd(60,WORLD-60), y=rnd(60,WORLD-60);
     if(d2(x,y,WORLD/2,WORLD/2)<260*260){ i--; continue; }
     G.decor.push({type,x,y,s:rnd(0.8,1.35),flip:Math.random()<0.5});
+  }
+  /* 世界边缘装饰带：墓碑与枯树 */
+  const estep=125;
+  for(let x=80;x<WORLD-80;x+=estep){
+    const v=((x/estep)|0)%2;
+    G.decor.push({type:v?'graveA':'treeA',x:x+rnd(-22,22),y:62+rnd(0,26),s:rnd(0.9,1.2),flip:Math.random()<0.5});
+    G.decor.push({type:v?'treeA':'graveA',x:x+rnd(-22,22),y:WORLD-62-rnd(0,26),s:rnd(0.9,1.2),flip:Math.random()<0.5});
+  }
+  for(let y=200;y<WORLD-200;y+=estep){
+    const v=((y/estep)|0)%2;
+    G.decor.push({type:v?'graveA':'treeA',x:62+rnd(0,26),y:y+rnd(-22,22),s:rnd(0.9,1.2),flip:Math.random()<0.5});
+    G.decor.push({type:v?'treeA':'graveA',x:WORLD-62-rnd(0,26),y:y+rnd(-22,22),s:rnd(0.9,1.2),flip:Math.random()<0.5});
   }
 }
 
@@ -1258,6 +1301,15 @@ function drawHUD(){
     ctx.fillText(G.passives[id],ix+20,iy+12);
     ix+=26;
   }
+  /* 触屏摇杆绘制 */
+  if(touch.active&&state==='playing'){
+    ctx.save(); ctx.globalAlpha=0.35;
+    ctx.strokeStyle='#e8e2f0'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(touch.ox,touch.oy,52,0,TAU); ctx.stroke();
+    ctx.fillStyle='#e8e2f0';
+    ctx.beginPath(); ctx.arc(touch.ox+touch.dx,touch.oy+touch.dy,20,0,TAU); ctx.fill();
+    ctx.restore();
+  }
   /* Boss 血条 */
   if(G.boss&&!G.boss.dead){
     const w=Math.min(430,VW*0.5),x=VW/2-w/2,y=44;
@@ -1457,6 +1509,7 @@ function boot(){
   buildSprites();
   initCanvas();
   bindInput();
+  bindTouch();
   bindUI();
   buildCharCards();
   document.getElementById('bestline').textContent=bestLine();

@@ -175,6 +175,7 @@ const ENEMIES = {
   imp:     { name:'小恶魔', spr:'impA', anim:7, hp:48, spd:116, dmg:11, xp:6, r:12, zigzag:1, first:1 },
   slime:   { name:'史莱姆', spr:'slimeA', anim:3, hp:115, spd:36, dmg:15, xp:9, r:17, squash:1, first:1 },
   demon:   { name:'大恶魔', spr:'demonA', anim:4, hp:200, spd:64, dmg:18, xp:14, r:16, first:1 },
+  hunter:  { name:'暗影猎手', spr:'ghostA', anim:7, hp:2600, spd:100, dmg:20, xp:26, r:14, ghost:true, dash2:1, noScale:1, first:1 },
   /* 头目 */
   reaper:  { name:'死神', spr:'reaperA', anim:2, hp:1700, spd:62, dmg:26, xp:80, r:26, boss:1, dash:1, size:1.15 },
   golem:   { name:'血岩傀儡', spr:'golemA', anim:1, hp:5600, spd:38, dmg:34, xp:120, r:30, boss:1, slam:1, size:1.1 },
@@ -208,6 +209,7 @@ const EVENTS = [
   { t:950, type:'chestrain', msg:'宝箱雨！抬头看！' },
   { t:1000, type:'ring', e:'demon', n:16, msg:'地狱之门开启！' },
   { t:1080, type:'swarm', e:'skeleton', n:34, msg:'亡者大军压境！' },
+  { t:1120, type:'hunters', n:4, msg:'暗影猎手盯上了你！' },
   { t:1140, type:'swarm', e:'demon', n:18, elite:2, msg:'最终考验！' },
 ];
 
